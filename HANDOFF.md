@@ -76,13 +76,17 @@ from the nowcast, and the OpenWeatherMap model layers proxied so the key never
 reaches the browser (verified: twelve tile requests, no credential in any of
 them). The legend states whether a layer is observation or model output.
 
+**Compare and history.** `/compare` puts up to five cities side by side from a
+single batched upstream request, marking the highest and lowest value in each
+row with an arrow as well as weight. `/history` charts ninety days of ERA5
+reanalysis and states today's anomaly against a ten-year climate normal, with
+the baseline and sample size shown alongside it.
+
 ## Next, in order
 
-1. `/compare` (the batched preview endpoint already supports it) and `/history`
-   (the archive and climate-normal adapters are already written).
-2. `lib/alerts/storms.ts` — NOAA NHC `CurrentStorms.json` plus KMZ track and
+1. `lib/alerts/storms.ts` — NOAA NHC `CurrentStorms.json` plus KMZ track and
    cone parsing; `fflate` is installed for the unzip.
-3. Public `/weather/[slug]` SEO pages, PWA, Playwright + axe, Lighthouse, and
+2. Public `/weather/[slug]` SEO pages, PWA, Playwright + axe, Lighthouse, and
    the §69 documents.
 
 ## MapLibre's worker

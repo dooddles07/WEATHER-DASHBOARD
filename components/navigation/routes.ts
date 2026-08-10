@@ -1,6 +1,8 @@
 import {
   CloudSun,
+  Columns3,
   Gauge,
+  History,
   Map,
   Radar,
   Settings,
@@ -68,6 +70,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Locations",
     Icon: Star,
     description: "Your saved places",
+  },
+  {
+    href: "/compare",
+    label: "Compare",
+    Icon: Columns3,
+    description: "Several cities side by side",
+  },
+  {
+    href: "/history",
+    label: "History",
+    Icon: History,
+    description: "Past weather and how today compares",
   },
   {
     href: "/settings",
