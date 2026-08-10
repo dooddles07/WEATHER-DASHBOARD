@@ -1,0 +1,278 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   ISOBAR design system
+   ---------------------------------------------------------------------------
+   Governing rule: the chrome is achromatic, colour is data.
+
+   The interface shell only ever uses the `--ink-*` graphite ramp. Every
+   chromatic value on screen encodes a measurement — temperature, precipitation
+   intensity, air quality, UV, alert severity. If something is coloured, it
+   means a number. Interaction is signalled by contrast, never by hue.
+
+   Data ramps live in `lib/weather/scales.ts` so that charts, SVG and CSS all
+   read the same source. Only the fixed band colours are mirrored here.
+--------------------------------------------------------------------------- */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  /* Graphite ramp — the only colours the shell may use. */
+  --color-ink-950: #0b0e12;
+  --color-ink-900: #11151b;
+  --color-ink-850: #161b23;
+  --color-ink-800: #1a202a;
+  --color-ink-700: #262e3b;
+  --color-ink-600: #3d4654;
+  --color-ink-500: #5b6675;
+  --color-ink-400: #78849a;
+  --color-ink-300: #9aa5b8;
+  --color-ink-200: #c8d0dc;
+  --color-ink-100: #e4e9f0;
+  --color-ink-050: #f4f6fa;
+  --color-ink-000: #ffffff;
+
+  /* Typography. Width encodes importance; mono encodes machine measurement. */
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-martian-mono), ui-monospace, "SF Mono", monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 2.375rem;
+  --text-4xl: 3rem;
+  --text-4xl--line-height: 3rem;
+
+  /* Corners stay tight. Nothing in this product is a pill. */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  /* Motion. Fast, purposeful, and never decorative. */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+}
+
+/* ---------------------------------------------------------------------------
+   Semantic surfaces. Light and dark are designed separately — dark mode is a
+   system in its own right, not an inversion. Elevation is one background step
+   plus a hairline, never a shadow.
+--------------------------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-base: var(--color-ink-050);
+  --surface-panel: var(--color-ink-000);
+  --surface-raised: var(--color-ink-000);
+  --surface-sunken: #eef1f7;
+  --surface-hover: rgb(11 14 18 / 0.04);
+  --surface-active: rgb(11 14 18 / 0.08);
+
+  --line-hairline: var(--color-ink-100);
+  --line-strong: var(--color-ink-200);
+
+  --text-primary: var(--color-ink-950);
+  --text-secondary: var(--color-ink-600);
+  --text-tertiary: var(--color-ink-500);
+  --text-inverse: var(--color-ink-000);
+
+  /* Interaction is maximum contrast, not a hue. */
+  --focus-ring: var(--color-ink-950);
+  --playhead: var(--color-ink-950);
+
+  /* Night portions of the ribbon, in light mode. */
+  --ribbon-day: rgb(11 14 18 / 0.02);
+  --ribbon-night: rgb(11 14 18 / 0.09);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-base: var(--color-ink-950);
+  --surface-panel: var(--color-ink-900);
+  --surface-raised: var(--color-ink-850);
+  --surface-sunken: #080a0e;
+  --surface-hover: rgb(255 255 255 / 0.05);
+  --surface-active: rgb(255 255 255 / 0.09);
+
+  --line-hairline: var(--color-ink-800);
+  --line-strong: var(--color-ink-700);
+
+  --text-primary: #f2f5fa;
+  --text-secondary: var(--color-ink-300);
+  --text-tertiary: var(--color-ink-400);
+  --text-inverse: var(--color-ink-950);
+
+  --focus-ring: #ffffff;
+  --playhead: #ffffff;
+
+  --ribbon-day: rgb(255 255 255 / 0.05);
+  --ribbon-night: rgb(0 0 0 / 0.32);
+}
+
+/* Expose the semantic layer to Tailwind utilities. `inline` keeps them as
+   variable references so a theme switch repaints without a rebuild. */
+@theme inline {
+  --color-base: var(--surface-base);
+  --color-panel: var(--surface-panel);
+  --color-raised: var(--surface-raised);
+  --color-sunken: var(--surface-sunken);
+  --color-hairline: var(--line-hairline);
+  --color-strong: var(--line-strong);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-tertiary: var(--text-tertiary);
+  --color-inverse: var(--text-inverse);
+  --color-ring: var(--focus-ring);
+}
+
+/* ---------------------------------------------------------------------------
+   Base layer
+--------------------------------------------------------------------------- */
+
+@layer base {
+  * {
+    border-color: var(--line-hairline);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "cv05" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* One focus treatment everywhere: 2px of pure contrast, offset so it reads
+     against both panel and base surfaces. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--surface-active);
+  }
+
+  /* Dense scrollable regions appear throughout; keep their furniture quiet. */
+  @supports (scrollbar-width: thin) {
+    .scroll-region {
+      scrollbar-width: thin;
+      scrollbar-color: var(--line-strong) transparent;
+    }
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Type roles
+
+   `.readout` is the gauge-face treatment: Archivo pushed to an expanded width
+   so large numbers carry the presence of an instrument dial. It is reserved
+   for measured values — never for prose.
+--------------------------------------------------------------------------- */
+
+@layer components {
+  .readout {
+    font-family: var(--font-sans);
+    font-variation-settings: "wdth" 118;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+
+  .readout-lg {
+    font-variation-settings: "wdth" 122;
+    letter-spacing: -0.035em;
+    font-weight: 450;
+  }
+
+  /* Micro labels: uppercase, tracked, never smaller than 11px. */
+  .label-micro {
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--text-tertiary);
+  }
+
+  /* Machine-measured values: timestamps, coordinates, model codes, units. */
+  .measured {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* The standard panel. A hairline and one background step — no shadow. */
+  .panel {
+    background-color: var(--surface-panel);
+    border: 1px solid var(--line-hairline);
+    border-radius: var(--radius-md);
+  }
+
+  /* Screen-reader-only, but focusable (used by the skip link). */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion. Weather-adaptive atmosphere is opt-in and additionally
+   suppressed here; scrubbing and every other interaction keeps working.
+--------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .atmosphere {
+    display: none !important;
+  }
+}
