@@ -1,4 +1,12 @@
-import { CloudSun, Gauge, Settings, Star, TriangleAlert } from "lucide-react";
+import {
+  CloudSun,
+  Gauge,
+  Map,
+  Radar,
+  Settings,
+  Star,
+  TriangleAlert,
+} from "lucide-react";
 import type { Route } from "next";
 
 /**
@@ -36,6 +44,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     description: "Hourly detail and the next 14 days",
   },
   {
+    href: "/map",
+    label: "Map",
+    Icon: Map,
+    primary: true,
+    description: "Temperature, wind, pressure and cloud layers",
+  },
+  {
+    href: "/radar",
+    label: "Radar",
+    Icon: Radar,
+    description: "Animated precipitation radar and satellite",
+  },
+  {
     href: "/alerts",
     label: "Alerts",
     Icon: TriangleAlert,
@@ -46,7 +67,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     href: "/locations",
     label: "Locations",
     Icon: Star,
-    primary: true,
     description: "Your saved places",
   },
   {

@@ -70,17 +70,29 @@ temperature, precipitation, daylight and sun events, with a playhead that
 retimes the whole dashboard. Drag it and the wind compass, UV band, air quality,
 sun position and activity scores all describe the scrubbed moment.
 
+**Map and radar.** Lazy-loaded MapLibre on OpenFreeMap tiles, RainViewer's
+animated radar with a scrubbing timeline that distinguishes observed frames
+from the nowcast, and the OpenWeatherMap model layers proxied so the key never
+reaches the browser (verified: twelve tile requests, no credential in any of
+them). The legend states whether a layer is observation or model output.
+
 ## Next, in order
 
-1. `/map` and `/radar` — lazy MapLibre + OpenFreeMap, RainViewer animated loop,
-   OWM overlay layers through the existing tile proxy. Add both to
-   `components/navigation/routes.ts` once they exist.
-2. `/compare` (the batched preview endpoint already supports it) and `/history`
+1. `/compare` (the batched preview endpoint already supports it) and `/history`
    (the archive and climate-normal adapters are already written).
-3. `lib/alerts/storms.ts` — NOAA NHC `CurrentStorms.json` plus KMZ track and
+2. `lib/alerts/storms.ts` — NOAA NHC `CurrentStorms.json` plus KMZ track and
    cone parsing; `fflate` is installed for the unzip.
-4. Public `/weather/[slug]` SEO pages, PWA, Playwright + axe, Lighthouse, and
+3. Public `/weather/[slug]` SEO pages, PWA, Playwright + axe, Lighthouse, and
    the §69 documents.
+
+## MapLibre's worker
+
+`scripts/copy-maplibre-worker.mjs` copies MapLibre's worker chunks into
+`public/maplibre/` before dev and build, and the map calls `setWorkerUrl` to
+point at them. Turbopack does not emit those chunks, so the worker request
+falls through to the app's HTML; MapLibre then hangs with no error and no
+`load` event, which is a genuinely confusing failure to diagnose. The copy is
+gitignored and regenerated from whatever version is installed.
 
 ## Known issues
 

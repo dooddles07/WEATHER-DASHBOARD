@@ -670,6 +670,124 @@ export async function fetchCurrentBatch(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Comparison                                                                 */
+/* -------------------------------------------------------------------------- */
+
+export interface ComparisonSnapshot {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  current: CurrentWeather;
+  today?: DayPoint;
+}
+
+const COMPARE_CURRENT = [
+  "temperature_2m",
+  "apparent_temperature",
+  "relative_humidity_2m",
+  "is_day",
+  "precipitation",
+  "weather_code",
+  "cloud_cover",
+  "pressure_msl",
+  "wind_speed_10m",
+  "wind_direction_10m",
+  "wind_gusts_10m",
+].join(",");
+
+const COMPARE_DAILY = [
+  "weather_code",
+  "temperature_2m_max",
+  "temperature_2m_min",
+  "precipitation_probability_max",
+  "precipitation_sum",
+  "uv_index_max",
+  "wind_speed_10m_max",
+  "sunrise",
+  "sunset",
+].join(",");
+
+/**
+ * Several places, one request.
+ *
+ * A comparison of five cities is five times the data but need not be five
+ * times the requests — Open-Meteo accepts a coordinate list and answers with an
+ * array in the same order. That is what keeps the page inside the rate limit.
+ */
+export async function fetchComparison(
+  coordinates: ReadonlyArray<{ latitude: number; longitude: number }>,
+): Promise<GuardResult<ComparisonSnapshot[]>> {
+  if (coordinates.length === 0) return { ok: true, data: [], latencyMs: 0 };
+
+  const url = `${FORECAST_HOST}?${search({
+    latitude: coordinates.map((point) => point.latitude.toFixed(4)).join(","),
+    longitude: coordinates.map((point) => point.longitude.toFixed(4)).join(","),
+    timezone: "auto",
+    timeformat: "unixtime",
+    forecast_days: 1,
+    current: COMPARE_CURRENT,
+    daily: COMPARE_DAILY,
+  })}`;
+
+  const result = await fetchJson(url, {
+    subsystem: "forecast",
+    schema: BatchResponse,
+    timeoutMs: 8000,
+    revalidate: 300,
+  });
+
+  if (!result.ok) return result;
+
+  const snapshots: ComparisonSnapshot[] = result.data.flatMap((entry, index) => {
+    if (!entry.current) return [];
+
+    const daily = entry.daily;
+    const sunriseAt = daily?.sunrise[0];
+    const sunsetAt = daily?.sunset[0];
+
+    return [
+      {
+        // Echo what was asked for; the provider answers with grid centres.
+        latitude: coordinates[index]?.latitude ?? entry.latitude,
+        longitude: coordinates[index]?.longitude ?? entry.longitude,
+        timezone: entry.timezone,
+        current: {
+          observedAt: fromUnixSeconds(entry.current.time),
+          isDay: (entry.current.is_day ?? 1) === 1,
+          temperature: entry.current.temperature_2m ?? 0,
+          feelsLike:
+            entry.current.apparent_temperature ?? entry.current.temperature_2m ?? 0,
+          humidity: entry.current.relative_humidity_2m ?? undefined,
+          pressure: entry.current.pressure_msl ?? undefined,
+          cloudCover: entry.current.cloud_cover ?? undefined,
+          windSpeed: entry.current.wind_speed_10m ?? 0,
+          windDirection: entry.current.wind_direction_10m ?? 0,
+          windGust: entry.current.wind_gusts_10m ?? undefined,
+          precipitation: entry.current.precipitation ?? undefined,
+          condition: conditionFromCode(entry.current.weather_code),
+        },
+        today: daily
+          ? {
+              date: localDateKey(daily.time[0] * 1000, entry.timezone),
+              temperatureMax: at(daily.temperature_2m_max, 0) ?? 0,
+              temperatureMin: at(daily.temperature_2m_min, 0) ?? 0,
+              precipitationProbabilityMax: at(daily.precipitation_probability_max, 0),
+              precipitationSum: at(daily.precipitation_sum, 0),
+              uvIndexMax: at(daily.uv_index_max, 0),
+              windSpeedMax: at(daily.wind_speed_10m_max, 0),
+              sunrise: sunriseAt === undefined ? undefined : fromUnixSeconds(sunriseAt),
+              sunset: sunsetAt === undefined ? undefined : fromUnixSeconds(sunsetAt),
+              condition: conditionFromCode(at(daily.weather_code, 0)),
+            }
+          : undefined,
+      },
+    ];
+  });
+
+  return { ok: true, data: snapshots, latencyMs: result.latencyMs };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Astronomy                                                                  */
 /* -------------------------------------------------------------------------- */
 
