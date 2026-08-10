@@ -604,6 +604,72 @@ export async function searchLocations(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Batched current conditions                                                 */
+/* -------------------------------------------------------------------------- */
+
+const BatchResponse = z.union([
+  z.array(ForecastResponse),
+  ForecastResponse.transform((single) => [single]),
+]);
+
+export interface CurrentSnapshot {
+  latitude: number;
+  longitude: number;
+  temperature: number;
+  code: number;
+  isDay: boolean;
+}
+
+/**
+ * Current conditions for several places in a single request.
+ *
+ * Open-Meteo accepts comma-separated coordinate lists, which is what makes the
+ * search previews and the comparison view affordable: six cities cost one
+ * upstream call rather than six, and stay well inside the rate limit.
+ */
+export async function fetchCurrentBatch(
+  coordinates: ReadonlyArray<{ latitude: number; longitude: number }>,
+): Promise<GuardResult<CurrentSnapshot[]>> {
+  if (coordinates.length === 0) {
+    return { ok: true, data: [], latencyMs: 0 };
+  }
+
+  const url = `${FORECAST_HOST}?${search({
+    latitude: coordinates.map((point) => point.latitude.toFixed(4)).join(","),
+    longitude: coordinates.map((point) => point.longitude.toFixed(4)).join(","),
+    timezone: "auto",
+    timeformat: "unixtime",
+    forecast_days: 1,
+    current: "temperature_2m,weather_code,is_day",
+  })}`;
+
+  const result = await fetchJson(url, {
+    subsystem: "forecast",
+    schema: BatchResponse,
+    timeoutMs: 5000,
+    revalidate: 300,
+  });
+
+  if (!result.ok) return result;
+
+  const snapshots: CurrentSnapshot[] = result.data.flatMap((entry) =>
+    entry.current
+      ? [
+          {
+            latitude: entry.latitude,
+            longitude: entry.longitude,
+            temperature: entry.current.temperature_2m ?? 0,
+            code: entry.current.weather_code ?? 0,
+            isDay: (entry.current.is_day ?? 1) === 1,
+          },
+        ]
+      : [],
+  );
+
+  return { ok: true, data: snapshots, latencyMs: result.latencyMs };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Astronomy                                                                  */
 /* -------------------------------------------------------------------------- */
 

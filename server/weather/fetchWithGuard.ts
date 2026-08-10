@@ -112,6 +112,9 @@ export async function fetchJson<T>(
   }
 
   let lastReason: DegradationReason = "unavailable";
+  // Kept separately from the user-facing message: the operator needs the real
+  // cause in `/api/health`, the visitor never should.
+  let lastDetail = "";
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
@@ -123,6 +126,7 @@ export async function fetchJson<T>(
 
       if (!response.ok) {
         lastReason = response.status === 429 ? "rate-limited" : "provider-error";
+        lastDetail = `HTTP ${response.status}`;
 
         // 4xx other than 429 will not fix itself; stop trying.
         const retryable = response.status === 429 || response.status >= 500;
@@ -144,7 +148,12 @@ export async function fetchJson<T>(
         // A shape change is not transient — retrying wastes the user's time.
         const latencyMs = Date.now() - startedAt;
         breaker.consecutiveFailures = 0;
-        recordFailure(subsystem, host, "schema mismatch", latencyMs);
+        recordFailure(
+          subsystem,
+          host,
+          `schema mismatch: ${parsed.error.issues[0]?.path.join(".")} ${parsed.error.issues[0]?.message}`,
+          latencyMs,
+        );
         return {
           ok: false,
           reason: "malformed",
@@ -162,6 +171,12 @@ export async function fetchJson<T>(
       const aborted =
         error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError");
       lastReason = aborted ? "timeout" : "unavailable";
+      // `fetch failed` on its own says nothing; the useful detail is always in
+      // the cause chain that undici attaches.
+      lastDetail =
+        error instanceof Error
+          ? `${error.name}: ${error.message}${error.cause ? ` (${String((error.cause as Error).message ?? error.cause)})` : ""}`
+          : String(error);
 
       if (attempt === retries) break;
       await sleep(250 + Math.random() * 250);
@@ -173,7 +188,7 @@ export async function fetchJson<T>(
   if (breaker.consecutiveFailures >= FAILURE_THRESHOLD && breaker.openedAt === undefined) {
     breaker.openedAt = Date.now();
   }
-  recordFailure(subsystem, host, lastReason, latencyMs);
+  recordFailure(subsystem, host, lastDetail || lastReason, latencyMs);
 
   return { ok: false, reason: lastReason, message: MESSAGES[lastReason], latencyMs };
 }

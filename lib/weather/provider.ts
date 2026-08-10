@@ -68,54 +68,79 @@ const forcedFailure = <T,>(subsystem: Subsystem): ProviderResult<T> => ({
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Signals a provider failure out of a cached function.
+ *
+ * This exists so failures are *not* cached. Returning a failure value from
+ * inside `use cache` would store it for the profile's full lifetime, and a
+ * two-second network blip would leave the dashboard broken for ten minutes
+ * with no way to retry. Throwing keeps the cache empty so the next request
+ * tries again; the throw is caught immediately below and converted back into
+ * the ordinary failure value the rest of the app expects.
+ */
+class ProviderFailure extends Error {
+  constructor(
+    readonly reason: DegradationReason,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ProviderFailure";
+  }
+}
+
+/** Turns a thrown `ProviderFailure` back into a value. */
+async function settle<T>(
+  read: () => Promise<{ data: T; fetchedAt: string }>,
+): Promise<ProviderResult<T>> {
+  try {
+    const { data, fetchedAt } = await read();
+    return { ok: true, data, fetchedAt };
+  } catch (error) {
+    const fetchedAt = new Date().toISOString();
+    if (error instanceof ProviderFailure) {
+      return { ok: false, reason: error.reason, message: error.message, fetchedAt };
+    }
+    return {
+      ok: false,
+      reason: "provider-error",
+      message: "The weather service could not be reached.",
+      fetchedAt,
+    };
+  }
+}
+
+/**
  * `fetchedAt` is stamped inside the cached function on purpose: it records when
  * the data actually left the provider, not when this render happened, which is
  * what the freshness indicator needs to be truthful about.
  */
-async function cachedForecast(
-  latitude: number,
-  longitude: number,
-  days: number,
-): Promise<ProviderResult<ForecastPayload>> {
+async function cachedForecast(latitude: number, longitude: number, days: number) {
   "use cache";
   cacheLife("hourly");
 
   const result = await fetchForecast(latitude, longitude, { days });
-  const fetchedAt = new Date().toISOString();
+  if (!result.ok) throw new ProviderFailure(result.reason, result.message);
 
-  return result.ok
-    ? { ok: true, data: result.data, fetchedAt }
-    : { ok: false, reason: result.reason, message: result.message, fetchedAt };
+  return { data: result.data, fetchedAt: new Date().toISOString() };
 }
 
-async function cachedAirQuality(
-  latitude: number,
-  longitude: number,
-): Promise<ProviderResult<AirQuality>> {
+async function cachedAirQuality(latitude: number, longitude: number) {
   "use cache";
   cacheLife("airQuality");
 
   const result = await fetchAirQuality(latitude, longitude);
-  const fetchedAt = new Date().toISOString();
+  if (!result.ok) throw new ProviderFailure(result.reason, result.message);
 
-  return result.ok
-    ? { ok: true, data: result.data, fetchedAt }
-    : { ok: false, reason: result.reason, message: result.message, fetchedAt };
+  return { data: result.data, fetchedAt: new Date().toISOString() };
 }
 
-async function cachedConfidence(
-  latitude: number,
-  longitude: number,
-): Promise<ProviderResult<ForecastConfidence>> {
+async function cachedConfidence(latitude: number, longitude: number) {
   "use cache";
   cacheLife("daily");
 
   const result = await fetchForecastConfidence(latitude, longitude);
-  const fetchedAt = new Date().toISOString();
+  if (!result.ok) throw new ProviderFailure(result.reason, result.message);
 
-  return result.ok
-    ? { ok: true, data: result.data, fetchedAt }
-    : { ok: false, reason: result.reason, message: result.message, fetchedAt };
+  return { data: result.data, fetchedAt: new Date().toISOString() };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -127,12 +152,13 @@ const openMeteoProvider: WeatherProvider = {
   forecast: (latitude, longitude, days = 16) =>
     isForced("forecast")
       ? Promise.resolve(forcedFailure<ForecastPayload>("forecast"))
-      : cachedForecast(latitude, longitude, days),
+      : settle(() => cachedForecast(latitude, longitude, days)),
   airQuality: (latitude, longitude) =>
     isForced("air-quality")
       ? Promise.resolve(forcedFailure<AirQuality>("air-quality"))
-      : cachedAirQuality(latitude, longitude),
-  confidence: (latitude, longitude) => cachedConfidence(latitude, longitude),
+      : settle(() => cachedAirQuality(latitude, longitude)),
+  confidence: (latitude, longitude) =>
+    settle(() => cachedConfidence(latitude, longitude)),
 };
 
 const mockProvider: WeatherProvider = {
